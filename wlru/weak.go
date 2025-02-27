@@ -1,4 +1,8 @@
-package lru
+package wlru
+
+import (
+	"weak"
+)
 
 type Cache[K comparable, V any] struct {
 	cap     int
@@ -7,8 +11,8 @@ type Cache[K comparable, V any] struct {
 	tail    *node[K, V]
 }
 
-// NewLRU creates a new Cache  with the capacity of cap.
-func NewLRU[K comparable, V any](cap int) *Cache[K, V] {
+// NewWeakLRU creates a new Cache with the capacity of cap.
+func NewWeakLRU[K comparable, V any](cap int) *Cache[K, V] {
 	if cap <= 1 {
 		panic("capacity must be greater than 1")
 	}
@@ -23,26 +27,48 @@ func NewLRU[K comparable, V any](cap int) *Cache[K, V] {
 
 type node[K comparable, V any] struct {
 	key   K
-	value V
+	value weak.Pointer[V]
 	next  *node[K, V]
 	prev  *node[K, V]
 }
 
 // Get - returns the value associated with the key, or false if no value exists.  If the value
 // exists in the cache, that value is now the most recently used value.
-func (c *Cache[K, V]) Get(key K) (V, bool) {
+func (c *Cache[K, V]) Get(key K) (*V, bool) {
 	n, exists := c.hashMap[key]
 	if !exists {
-		var zero V
-		return zero, false
+		return nil, false
 	}
 	moveToTop(c, n)
-	return n.value, true
+	return n.value.Value(), true
+}
+
+// Delete an entry from the cache.
+func (c *Cache[K, V]) Delete(key K) bool {
+	n, ok := c.hashMap[key]
+	if ok {
+		delete(c.hashMap, key)
+		if c.head == n {
+			c.head = n.next
+		}
+		if n.next != nil {
+			n.next.prev = n.prev
+		}
+
+		if c.tail == n {
+			c.tail = n.prev
+		}
+		if n.prev != nil {
+			n.prev.next = n.next
+		}
+	}
+
+	return ok
 }
 
 // Put - adds a new value or updates an existing value. If the capacity is exceeded when a new
 // value is added then the oldest value in the cache will be evicted.
-func (c *Cache[K, V]) Put(key K, value V) {
+func (c *Cache[K, V]) Put(key K, value *V) {
 	n, exists := c.hashMap[key]
 	if exists {
 		moveToTop(c, n)
@@ -51,7 +77,7 @@ func (c *Cache[K, V]) Put(key K, value V) {
 
 	n = &node[K, V]{
 		key:   key,
-		value: value,
+		value: weak.Make(value),
 		next:  c.head,
 		prev:  nil,
 	}

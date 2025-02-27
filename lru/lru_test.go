@@ -1,15 +1,11 @@
-package cache
+package lru
 
 import (
 	"testing"
 )
 
 func TestPut(t *testing.T) {
-	cache, err := NewLRU[int, int](10)
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	cache := NewLRU[int, int](10)
 	for i := 0; i != 10; i++ {
 		cache.Put(i, i)
 	}
@@ -28,10 +24,7 @@ func TestPut(t *testing.T) {
 }
 
 func TestGetEmpty(t *testing.T) {
-	cache, err := NewLRU[string, string](3)
-	if err != nil {
-		t.Fatalf("failed to make the cache: %+v", err)
-	}
+	cache := NewLRU[string, string](3)
 	_, exists := cache.Get("foo")
 	if exists {
 		t.Fatal("get on an empty list returned a value")
@@ -39,11 +32,7 @@ func TestGetEmpty(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
-	cache, err := NewLRU[int, int](2)
-	if err != nil {
-		t.Fatalf("unable to create cache: %+v", err)
-	}
-
+	cache := NewLRU[int, int](2)
 	cache.Put(1, 1)
 	_, exists := cache.Get(0)
 	if exists {
@@ -57,5 +46,4 @@ func TestGet(t *testing.T) {
 	if val != 1 {
 		t.Fatalf("expected 1, got %d", val)
 	}
-
 }
